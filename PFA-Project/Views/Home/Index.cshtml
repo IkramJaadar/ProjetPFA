@@ -1,0 +1,228 @@
+﻿@model List<FamilleProduit>
+
+
+<script>
+    function showalert() {
+        alert("Article n'est pas disponible");
+    }
+
+    function productsselected() {
+        var prods = "";
+        var qnts = "";
+        let i = 0;
+        for (let i = 0; i < produits.length; i++) {
+            if (i == 0) {
+                prods = produits[i].idproduit;
+                qnts = produits[i].quantite;
+            } else {
+                prods += ',' + produits[i].idproduit;
+                qnts += ',' + produits[i].quantite;
+            }
+            i++;
+        }
+        return { prods: prods.toString(), qnts: qnts.toString() };
+    }
+    function validercmd() {
+        var valtable = document.querySelector('input[name="table"]:checked').value;
+        var valserver = document.querySelector('input[name="server"]:checked').value;
+        var prods = productsselected();
+       // console.log("" + JSON.stringify(prods));
+        var cmdData = { table: valtable, server: valserver, produits: prods.prods, qnts: prods.qnts };
+        //console.log("" + JSON.stringify(cmdData));
+        $.ajax({
+            url: '/api/MisAPI',
+            type: 'Post',
+            contentType: 'application/json',
+            data: JSON.stringify(cmdData),
+            success: function (data) {
+                //console.log("cmd = " + JSON.stringify(data));
+                if (data.r == "Oui") {
+                   // console.log("cmd = " + JSON.stringify(data));
+                    console.log('Command created successfully');
+                    $('.cart-dialog--active').removeClass('cart-dialog--active');
+                    document.getElementById("moncard").style.visibility = "hidden";
+                    produits = [];
+                    alert("Commande success");
+                }
+            }
+        });
+        //console.log(produits);
+    }
+</script>
+<!-- Custom styles for this template -->
+<link href="~/menu/css/style.css" rel="stylesheet" />
+<link rel="stylesheet" href="/css/stylecart.css" />
+<div class="row">
+    <div class="col-lg-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <section class="food_section layout_padding">
+                    <div class="container">
+                        <div class="heading_container heading_center">
+                            <h2>
+                                Menu
+                            </h2>
+                        </div>
+                        <br />
+                        <br />
+                        <div class="row">
+                            <div class="col-md-6">
+                                @{
+                                    List<Employee> employees = (List<Employee>)(ViewBag.Serveurs);
+                                    List<Table> tables = (List<Table>)(ViewBag.Tables);
+                                }
+                                <h5>Serveurs</h5>
+                                <ul style="list-style: none;">
+                                    @{
+                                        int i = 0;
+                                    }
+                                    @foreach (Employee em in employees)
+                                    {
+                                        <li><input type="radio" name="server" value="@em.Id" @(i == 0 ? "checked" : "") /> Serveur @em.Nom @em.Prenom</li>
+                                        i++;
+                                    }
+                                </ul>
+
+                            </div>
+                            <div class="col-md-6" style="text-align:right">
+                                <h5 style=" ">Tables</h5>
+                                <ul style="text-align:right;list-style: none;">
+                                    @{
+                                        i = 0;
+                                    }
+                                    @foreach (var item in tables)
+                                    {
+                                        <li><input type="radio" name="table" value="@item.Id" @(i == 0 ? "checked" : "") /> Table @item.NumTable</li>
+                                        i++;
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                        <hr />
+                        <br />
+                        <ul class="filters_menu">
+                            <li class="active" data-filter="*">All</li>
+                            @foreach (var listf in ViewBag.familles)
+                            {
+                                <li data-filter=".@listf.Libelle.Replace(" ","_").ToLower()">@listf.Libelle</li>
+                            }
+                        </ul>
+                        <div class="filters-content">
+                            @{
+                                bool dispo = true;
+                            }
+                            <div class="row grid" id="grid">
+                                @foreach (FamilleProduit fa in Model)
+                                {
+                                    @foreach (Article a in fa.articles)
+                                    {
+                                        if (a.QteStock == 100)
+                                        {
+                                            dispo = false;
+                                            break;
+                                        }
+
+                                    }
+                                    <div class="col-sm-6 col-lg-3 all @fa.LibelleFamille.Replace(" "," _").ToLower()">
+                                        <div class="box">
+                                            <div>
+                                                <div class="img-box">
+                                                    <img src="/ImgProduit/@fa.Image" alt="@fa.LibelleFamille.ToLower()" id="imgpr_@fa.IdProduit">
+                                                </div>
+                                                <div class="@(dispo==false?"bg-warning":"") detail-box">
+                                                    <h5 id="libelleproduit_@fa.IdProduit">
+                                                        @fa.LibelleProduit
+                                                    </h5>
+                                                    <div class="options">
+                                                        <h6 id="prixproduit_@fa.IdProduit">
+                                                            @fa.Prix DH
+                                                        </h6>
+                                                        @if (dispo == false)
+                                                        {
+                                                            <a onclick="showalert();">
+                                                                <i class="fa fa-check-circle" aria-hidden="false"></i>
+                                                            </a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <a onclick="CreateProduit(@fa.IdProduit)">
+                                                                <i class="fa fa-check-circle" aria-hidden="false"></i>
+                                                            </a>
+                                                        }
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+<form method="post" action="/Commande/AjouterCommande">
+    <aside id="moncard" class="cart-menu" style="visibility:hidden">
+        <!--bloquer la page de ne pas reloader -->
+        <a id="cart-button" class="button" href="javascript:void(0)" style="opacity: 1;">
+            <span>Commandes</span>
+            <b id="cpt">(0)</b>
+        </a>
+        <div class="cart-dialog">
+            <div class="widget woocommerce widget_shopping_cart">
+                <h2 class="widgettitle">Cart</h2>
+                <div class="widget_shopping_cart_content" style="opacity: 1;">
+                    <ul id="contentul" class="woocommerce-mini-cart cart_list product_list_widget ">
+                    </ul>
+
+                    <p class="woocommerce-mini-cart__total total">
+                        <strong>Total Commande:</strong>
+                        <span class="woocommerce-Price-amount amount">
+
+                            <span id="total">0</span>
+                            <span class="woocommerce-Price-currencySymbol">
+                                DH
+                            </span>
+                        </span>
+                    </p>
+                    <p class="woocommerce-mini-cart__buttons buttons">
+                        <button type="button" onclick="validercmd();" class="button checkout wc-forward btn btn-info btn-fw"> Valider</button>
+                    </p>
+                   @* <hr />
+                    @{
+                        List<Employee> employees = (List<Employee>)(ViewBag.Serveurs);
+                        List<Table> tables = (List<Table>)(ViewBag.Tables);
+                    }
+                    <ul class="">
+                        @{
+                            int i = 0;
+                        }
+                        @foreach (Employee em in employees)
+                        {
+                            <li><input type="radio" name="server" value="@em.Id" @(i == 0 ? "checked" : "") /> Serveur @em.Nom @em.Prenom</li>
+                            i++;
+                        }
+                    </ul>
+                    <ul class="">
+                        @{
+                            i = 0;
+                        }
+                        @foreach (var item in tables)
+                        {
+                            <li><input type="radio" name="table" value="@item.Id" @(i == 0 ? "checked" : "") /> table @item.NumTable</li>
+                            i++;
+                        }
+                    </ul>*@
+                </div>
+            </div>
+        </div>
+    </aside>
+</form>
+
+<script>
+    //optimiser sidebar
+    document.body.classList.add("sidebar-icon-only");
+</script>
